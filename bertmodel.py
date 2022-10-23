@@ -8,46 +8,8 @@ import torch.optim as optim
 from transformers import BertTokenizer, BertModel
 from AttentionModel import AttentionPooling
 from pytorchtools import EarlyStopping
-# from visual import get_entity, clean_type
-
-# load entity
-def get_entity():
-    data = json.load(open('all_output_multi_source_drug_processed.json')) # 171414, 384323
-    entity = data['entity'] # 79756 81607 81607
-    ent_name = {} # ID_2_name
-    ent_dict = {} # ID_2_index
-    ent_list = [] # ID
-    ent_type = [] # index_2_type
-    type_list = set()
-    for ent in entity:
-        if '名称' in ent:
-            ent_name[ent['ID']] = ent['名称']
-            ent_dict[ent['ID']] = len(ent_dict) # 存在一个名称对应多个ID的情况
-            ent_list.append(ent['ID'])
-            # ent_type[ent_dict[ent['ID']]] = ent['类型'][0][0][0]
-            ent_type.append(ent['类型'][0][0][0])
-            type_list.add(ent['类型'][0][0][0]) # 一个实体可能有多种类型
-
-    type_list = list(type_list)
-    type_dict = {type_list[i]: i for i in range(len(type_list))}
-    return ent_dict, ent_list, ent_name, ent_type, type_dict
-
-# clean type
-def clean_type(ent_type, type_dict):
-    for i in range(len(ent_type)):
-        if ent_type[i] in ['实验室检查', '影像学检查', '体格检查']:
-            ent_type[i] = '检查'
-        elif ent_type[i] in ['症状描述', '症状', '独立症状']:
-            ent_type[i] = '症状'
-    type_dict.pop('实验室检查')
-    type_dict.pop('影像学检查')
-    type_dict.pop('体格检查')
-    type_dict.pop('症状描述')
-    type_dict.pop('独立症状')
-    for i, key in enumerate(type_dict):
-        type_dict[key] = i
-    type_dict['检查'] = len(type_dict)
-    return ent_type, type_dict
+from data import load_entity
+from utils import get_entity, clean_type, save_data, load_data
 
 class BertCls(nn.Module):
     def __init__(self):
@@ -199,25 +161,9 @@ def train_bertcls_emb():
         bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
         bert_emb.append(bert_out.detach().cpu())
     bert_emb = torch.cat(bert_emb, dim = 0) # ([81607, 768])
+    save_data('bert_emb.vec', bert_emb)
     print('bert_emb:', bert_emb.shape)
-   
     return bert_emb
-
-# def save_model(model, vocab):
-#     model_time = '{}'.format(time.strftime('%m%d%H%M', time.localtime()))
-#     model_path = './model/{}'.format(model_time)
-#     os.mkdir(model_path)
-#     torch.save(model.state_dict(), model_path + '/model_' + model_time)
-#     with open(model_path + '/vocab_' + model_time, 'wb') as f:
-#         pickle.dump(vocab, f)
-#     print('Save model:', model_path)
-
-# def load_model(model_time, model):
-#     model_path = './model/{}'.format(model_time)
-#     model.load_state_dict(torch.load(model_path + '/model_' + model_time))
-#     with open(model_path + '/vocab_' + model_time, 'rb') as f:
-#         vocab = pickle.load(f)
-#     return model, vocab
 
 def get_bertcls_emb(model_time = '10221520'):
     model = BertCls().to('cuda')
@@ -238,12 +184,31 @@ def get_bertcls_emb(model_time = '10221520'):
         bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
         bert_emb.append(bert_out.detach().cpu())
     bert_emb = torch.cat(bert_emb, dim = 0) # ([81607, 768])
+    save_data('bert_emb.vec', bert_emb)
     print('bert_emb:', bert_emb.shape)
-
-    # todo: save embedding
-   
     return bert_emb, label
 
+def get_rel_emb(model_time = '10221520'):
+    rel_dict, rel_list = load_entity('./drugdata/relation2id.txt')
+    model = BertCls().to('cuda')
+    model, vocab = load_model(model_time, model)
+    ent_dict, ent_list, ent_name, ent_type, type_dict, \
+        label, ent_list, tokenizer, tokens = vocab
+    tokens = tokenizer([rel for rel in rel_list], 
+                       padding = 'max_length', truncation = True, max_length = 20, return_tensors = 'pt')
+    token_ids = tokens['input_ids'].to('cuda')
+    mask_ids = tokens['attention_mask'].to('cuda')
+    bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
+    rel_emb = bert_out.detach().cpu()
+    save_data('rel_bert_emb.vec', rel_emb)
+    print('rel_emb:', rel_emb.shape)
+    return rel_emb
+
+def load_emb(data_path):
+    ent_emb = load_data(data_path + 'bert_emb.vec')
+    rel_emb = load_data(data_path + 'rel_bert_emb.vec')
+    return ent_emb, rel_emb
 
 if __name__ == '__main__':
-    load_bertcls_emb('10221520')
+    # get_bertcls_emb('10221520')
+    get_rel_emb('10221520')

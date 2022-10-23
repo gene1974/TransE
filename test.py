@@ -6,19 +6,7 @@ from OpenKE.openke.module.model import TransE
 from OpenKE.openke.data import TestDataLoader, TrainDataLoader
 
 from data import load_entity
-
-# get all ent_embedding or rel_embedding
-def get_embeds(embedding_layer, ent_list):
-    n_ent = len(ent_list)
-    ent_ids = torch.tensor(list(range(n_ent)), dtype = int, device = 'cuda')
-    ent_embeds = torch.zeros((n_ent, 200))
-    batch_size = 16
-    begin = 0
-    while begin < n_ent:
-        end = min(n_ent, begin + batch_size)
-        ent_embeds[begin: end] = embedding_layer(ent_ids[begin: end])
-        begin += batch_size
-    return ent_embeds
+from utils import get_embeds
 
 def rank_sim(target, ent_embeds):
     n_ent = ent_embeds.shape[0]
