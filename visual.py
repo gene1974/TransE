@@ -25,7 +25,7 @@ def plot_embedding(data, label, title, legend):
     plt.title(title)
     plt.legend(legend)
     model_time = time.strftime('%m%d%H%M', time.localtime())
-    plt.savefig(title + '.' + model_time + '.png', dpi = 300)
+    plt.savefig('./fig/' + title + '.' + model_time + '.png', dpi = 300)
     return fig
 
 def load_transe(ent_list, model_time = '09161640', emb_dim = 200):
@@ -75,6 +75,23 @@ def visual_emb(ent_embeds, label, title, legend):
     result = tsne.fit_transform(ent_embeds.detach().numpy())
     print('tsne:', result.shape)
     plot_embedding(result, label, title, legend)
+
+def do_emb(mod = 'transe', model_time = '09161640', emb_dim = 768):
+    ent_dict, ent_list, ent_name, ent_type, type_dict = get_entity()
+    ent_type, type_dict = clean_type(ent_type, type_dict)
+    label = np.array([type_dict[i] for i in ent_type])
+    legend = list(range(len(type_dict)))
+    cal_type_num(type_dict, label)
+    if mod == 'transe':
+        ent_embeds = load_transe(ent_list, model_time, emb_dim = emb_dim)
+        title = 'transe'
+    elif mod == 'bert':
+        ent_embeds = get_bert_emb(ent_list, ent_name)
+        title = 'bert-avg'
+    elif mod == 'bertcls':
+        ent_embeds, label = get_bertcls_emb()
+        title = 'bert-cls'
+    return ent_embeds, label, title, legend
 
 def visual(mod = 'transe', model_time = '09161640'):
     ent_dict, ent_list, ent_name, ent_type, type_dict = get_entity()

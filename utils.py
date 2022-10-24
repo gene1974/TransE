@@ -5,7 +5,7 @@ import time
 import torch
 
 # get all ent_embedding or rel_embedding
-def get_embeds(embedding_layer, ent_list, emb_dim = 200):
+def get_embeds(embedding_layer, ent_list, emb_dim = 768):
     n_ent = len(ent_list)
     ent_ids = torch.tensor(list(range(n_ent)), dtype = int, device = 'cuda')
     ent_embeds = torch.zeros((n_ent, emb_dim))
