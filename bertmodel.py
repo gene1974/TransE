@@ -8,16 +8,16 @@ import torch.optim as optim
 from transformers import BertTokenizer, BertModel
 from AttentionModel import AttentionPooling
 from pytorchtools import EarlyStopping
-from data import get_entity, get_triplet
+from data import get_entity, get_triplet, load_vocab
 from utils import save_data, load_data
 
 class BertCls(nn.Module):
-    def __init__(self):
+    def __init__(self, n_type):
         super().__init__()
         self.bert = BertModel.from_pretrained('/data/pretrained/bert-base-chinese/').to('cuda')
         self.avg = AttentionPooling(768, 200)
         self.dropout = nn.Dropout(0.2)
-        self.cls = nn.Linear(768, 11)
+        self.cls = nn.Linear(768, n_type)
     def forward(self, token_ids, mask_ids):
         bert_out = self.bert(token_ids, mask_ids)['last_hidden_state'] # (n_batch, n_tokens, n_emb)
         bert_out = self.dropout(bert_out)
@@ -65,8 +65,8 @@ def load_model(model_time, model):
         vocab = pickle.load(f)
     return model, vocab
 
-def train_bert(train_loader, valid_loader):
-    model = BertCls().to('cuda')
+def train_bert(train_loader, valid_loader, n_type):
+    model = BertCls(n_type).to('cuda')
     optimizer = optim.Adam(model.parameters(), lr = 3e-6)
     early_stopping = EarlyStopping(patience = 5, verbose = False)
     entrophy = nn.CrossEntropyLoss()
@@ -84,7 +84,6 @@ def train_bert(train_loader, valid_loader):
             tokens, masks, labels = batch
             optimizer.zero_grad()
             output = model(tokens, masks) # (n_batch, n_class)
-            print(output)
             loss = entrophy(output, labels)
             train_losses.append(loss.item())
             loss.backward()
@@ -131,9 +130,8 @@ def test_bert(model, test_set):
             test_correct += torch.sum(predict == labels).item()
             test_total += len(labels)
     print('Test: Acc: {:4f}'.format(test_correct / test_total))
-    
 
-def train_bertcls_emb(ent_list, ent_name, label):
+def train_bertcls_emb(ent_list, ent_name, type_dict, label, rel_list):
     ent_list = [ent_name[ent] for ent in ent_list]
     tokenizer = BertTokenizer.from_pretrained('/data/pretrained/bert-base-chinese/')
     tokens = tokenizer([ent for ent in ent_list], 
@@ -142,43 +140,19 @@ def train_bertcls_emb(ent_list, ent_name, label):
     n_train, n_dev = int(0.8 * len(tokens['input_ids'])), int(0.2 * len(tokens['input_ids']))
     train_set = BertData(tokens['input_ids'][:n_train], tokens['attention_mask'][:n_train], label[:n_train])
     valid_set = BertData(tokens['input_ids'][n_train:], tokens['attention_mask'][n_train:], label[n_train:])
-    model = train_bert(train_set, valid_set)
+    model = train_bert(train_set, valid_set, len(type_dict))
 
-    vocab = [ent_list, ent_name, label, tokenizer, tokens]
+    vocab = [tokenizer, tokens]
     model_time = save_model(model, vocab)
     test_bert(model, valid_set)
+    bert_emb, rel_emb, emb_time = get_bertcls_emb(rel_list, model_time = '10221520')
 
-    batch_size = 16
-    bert_emb = []
-    for i in range(0, len(tokens['input_ids']), batch_size):
-        token_ids = tokens['input_ids'][i: i + batch_size].to('cuda')
-        mask_ids = tokens['attention_mask'][i: i + batch_size].to('cuda')
-        bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
-        bert_emb.append(bert_out.detach().cpu())
-    bert_emb = torch.cat(bert_emb, dim = 0) # ([81607, 768])
-    # save_data('bert_emb.vec', bert_emb)
+    return model, model_time, bert_emb, rel_emb, emb_time
 
-    rel_dict, rel_list, triplets = get_triplet()
-    tokens = tokenizer([rel for rel in rel_list], 
-                       padding = 'max_length', truncation = True, max_length = 20, return_tensors = 'pt')
-    token_ids = tokens['input_ids'].to('cuda')
-    mask_ids = tokens['attention_mask'].to('cuda')
-    bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
-    rel_emb = bert_out.detach().cpu()
-
-    print('bert_emb:', bert_emb.shape)
-    data_time = save_data('./result/bert_emb.vec', [bert_emb, rel_emb])
-    return bert_emb, rel_emb, data_time
-
-def get_bertcls_emb(model_time = '10221520'):
+def get_bertcls_emb(rel_list, model_time = '10221520'):
     model = BertCls().to('cuda')
     model, vocab = load_model(model_time, model)
-    ent_list, ent_name, label, tokenizer, tokens = vocab
-    
-    # test model and vocab
-    # n_train, n_dev = int(0.8 * len(tokens['input_ids'])), int(0.2 * len(tokens['input_ids']))
-    # valid_set = BertData(tokens['input_ids'][n_train:], tokens['attention_mask'][n_train:], label[n_train:])
-    # test_bert(model, valid_set)
+    tokenizer, tokens = vocab
 
     batch_size = 16
     bert_emb = []
@@ -189,38 +163,23 @@ def get_bertcls_emb(model_time = '10221520'):
         bert_emb.append(bert_out.detach().cpu())
     bert_emb = torch.cat(bert_emb, dim = 0) # ([81607, 768])
 
-    rel_dict, rel_list, triplets = get_triplet()
-    tokens = tokenizer([rel for rel in rel_list], 
+    rel_tokens = tokenizer([rel for rel in rel_list], 
                        padding = 'max_length', truncation = True, max_length = 20, return_tensors = 'pt')
-    token_ids = tokens['input_ids'].to('cuda')
-    mask_ids = tokens['attention_mask'].to('cuda')
+    token_ids = rel_tokens['input_ids'].to('cuda')
+    mask_ids = rel_tokens['attention_mask'].to('cuda')
     bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
     rel_emb = bert_out.detach().cpu()
 
-    save_data('./result/bert_emb.vec', bert_emb)
-    print('bert_emb:', bert_emb.shape)
-    return bert_emb, label, rel_emb
+    emb_time = save_data('./result/bert_emb.vec', [bert_emb, rel_emb])
+    print('bert_emb:', bert_emb.shape, 'rel_emb:', rel_emb.shape)
+    return bert_emb, rel_emb, emb_time
 
-def get_rel_emb(model_time = '10221520'):
-    rel_dict, rel_list, triplets = get_triplet()
-    model = BertCls().to('cuda')
-    model, vocab = load_model(model_time, model)
-    ent_list, ent_name, label, tokenizer, tokens = vocab
-    tokens = tokenizer([rel for rel in rel_list], 
-                       padding = 'max_length', truncation = True, max_length = 20, return_tensors = 'pt')
-    token_ids = tokens['input_ids'].to('cuda')
-    mask_ids = tokens['attention_mask'].to('cuda')
-    bert_out = model.embedding(token_ids, mask_ids) # (n_batch, n_tokens, n_emb)
-    rel_emb = bert_out.detach().cpu()
-    # save_data('rel_bert_emb.vec', rel_emb)
-    print('rel_emb:', rel_emb.shape)
-    return rel_emb
-
-def load_emb(model_time):
-    ent_emb, rel_emb = load_data('./result/bert_emb.vec.' + model_time)
+def load_emb(emb_time):
+    ent_emb, rel_emb = load_data('./result/bert_emb.vec', emb_time)
     return ent_emb, rel_emb
 
 if __name__ == '__main__':
-    ent_dict, ent_list, ent_name, ent_type, type_dict, label = get_entity()
-    # get_bertcls_emb('10221520')
-    get_rel_emb('10221520')
+    ent_dict, ent_list, ent_name, ent_type, type_dict, label, \
+        rel_dict, rel_list, triplets = load_vocab()
+    train_bertcls_emb(ent_list, ent_name, label, rel_list)
+

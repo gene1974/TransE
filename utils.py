@@ -4,19 +4,6 @@ import pickle
 import time
 import torch
 
-# embed entities
-def get_embeds(embedding_layer, ent_list, emb_dim = 768):
-    n_ent = len(ent_list)
-    ent_ids = torch.tensor(list(range(n_ent)), dtype = int, device = 'cuda')
-    ent_embeds = torch.zeros((n_ent, emb_dim))
-    batch_size = 16
-    begin = 0
-    while begin < n_ent:
-        end = min(n_ent, begin + batch_size)
-        ent_embeds[begin: end] = embedding_layer(ent_ids[begin: end])
-        begin += batch_size
-    return ent_embeds
-
 def clean_str(token):
     return token.replace('(', '').replace(')', '').replace('/', '').replace('-', '').replace('[', '').replace(']', '').replace('~', '').replace('', '')
 

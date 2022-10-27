@@ -3,95 +3,35 @@ import numpy as np
 
 from utils import load_data, save_data
 
-# --- Archived ---
-
-def dump_raw_data(root, entity, relation):
-    with open(root + 'rawdata/entity2id.txt', 'w') as f:
-        f.write(str(len(entity)) + '\n')
-        for ent in entity:
-            if '名称' in ent:
-                f.write(ent['名称'] + '\t' + str(ent['ID']) + '\n')
-            else:
-                f.write(ent['内容'] + '\t' + str(ent['ID']) + '\n')
-    rel_dict = {}
-    with open(root + 'rawdata/train2id.txt', 'w') as f:
-        f.write(str(len(relation)) + '\n')
-        for rel in relation:
-            if rel[2] not in rel_dict:
-                rel_dict[rel[2]] = len(rel_dict)
-            f.write(str(rel[0]) + '\t' + str(rel[1]) + '\t' + str(rel_dict[rel[2]]) + '\n')
-    with open(root + 'rawdata/relation2id.txt', 'w') as f:
-        f.write(str(len(rel_dict)) + '\n')
-        for i, rel in enumerate(rel_dict):
-            f.write(rel + '\t' + str(i) + '\n')
-    return rel_dict
-
-def dump_entity(root, entity):
-    ent_name = {} # ID_2_name
-    ent_dict = {} # ID_2_index
-    ent_list = [] # ID
-    for ent in entity:
-        if '名称' in ent:
-            ent_name[ent['ID']] = ent['名称']
-            ent_dict[ent['ID']] = len(ent_dict) # 存在一个名称对应多个ID的情况
-            ent_list.append(ent['ID'])
-    
-    print('entity: ', len(ent_dict))
-    with open(root + 'entity2id.txt', 'w') as f:
-        f.write(str(len(ent_dict)) + '\n')
-        for i, ent_id in enumerate(ent_list):
-            f.write(ent_name[ent_id] + '\t' + str(i) + '\n')
-    return ent_dict, ent_list, ent_name
-
-def dump_relation(root, triples):
-    # relation
-    rel_dict = {}
-    for trip in triples:
-        if trip[2] not in rel_dict:
-            rel_dict[trip[2]] = len(rel_dict)
-    print('relation: ', len(rel_dict))
-    with open(root + 'relation2id.txt', 'w') as f:
-        f.write(str(len(rel_dict)) + '\n')
-        for i, rel in enumerate(rel_dict):
-            f.write(rel + '\t' + str(i) + '\n')
-    return rel_dict
-
-def dump_triples(root, triples, ent_dict, rel_dict):
-    num_total = len(triples)
-    num_train, num_valid = int(0.7 * num_total), int(0.15 * num_total)
-    print('train: ', num_train, 'valid: ', num_valid, 'test: ', num_total - num_train - num_valid)
-
-    # random.shuffle(triples)
-    # train
-    with open(root + 'train2id.txt', 'w') as f:
-        f.write(str(num_train) + '\n')
-        for trip in triples[:num_train]:
-            f.write(str(ent_dict[trip[0]]) + '\t' + str(ent_dict[trip[1]]) + '\t' + str(rel_dict[trip[2]]) + '\n')
-    # valid
-    with open(root + 'valid2id.txt', 'w') as f:
-        f.write(str(num_valid) + '\n')
-        for trip in triples[num_train: num_train + num_valid]:
-            f.write(str(ent_dict[trip[0]]) + '\t' + str(ent_dict[trip[1]]) + '\t' + str(rel_dict[trip[2]]) + '\n')
-    # test
-    with open(root + 'test2id.txt', 'w') as f:
-        f.write(str(num_total - num_train - num_valid) + '\n')
-        for trip in triples[num_train + num_valid:]:
-            f.write(str(ent_dict[trip[0]]) + '\t' + str(ent_dict[trip[1]]) + '\t' + str(rel_dict[trip[2]]) + '\n')
-
-def load_entity(filename):
-    ent_dict = {} # name2idx
-    ent_list = [] # name
-    with open(filename, 'r') as f:
-        for line in f.readlines():
-            try:
-                ent_name, idx = line.strip().split('\t')
-                ent_list.append(ent_name)
-                ent_dict[ent_name] = int(idx)
-            except:
-                continue
-    return ent_dict, ent_list
-
-# --- End Archived ---
+ent_type_dict = {
+    '疾病': 0,
+    '症状': 1,
+    '手术': 2,
+    '部位': 3,
+    '生化指标': 4,
+    '药物': 5,
+    '实验室检查': 6,
+    '影像学检查': 7,
+    '体格检查': 8,
+    '就诊科室': 9,
+    '药品名': 10,
+    '其他治疗': 11,
+}
+rel_dict = {
+    '症状': 0,
+    '部位': 1,
+    '检查': 2,
+    '并发症': 3,
+    '规范化药品名称': 4,
+    '科室': 5,
+    '抗炎': 6,
+    '止痛': 7,
+    '解热': 8,
+    '指标': 9,
+    '疾病相关指标': 10,
+    '治疗': 11,
+    '抗病毒': 12,
+}
 
 # merge types
 def merge_ent_type(ent_type, type_dict):
@@ -209,7 +149,7 @@ def dump_and_save_vocab():
     ]
     data_time = save_data('./result/vocab', vocab)
 
-def load_vocab(data_time = None):
+def load_vocab(data_time = '10271000'):
     vocab = load_data('./result/vocab', data_time)
     return vocab
 

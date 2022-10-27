@@ -6,10 +6,38 @@ from OpenKE.openke.module.model import TransE
 from transformers import BertTokenizer, BertModel
 from sklearn.manifold import TSNE
 
-from test import get_embeds
 from bertmodel import get_bertcls_emb
-from utils import get_embeds
-from data import get_entity
+from data import load_vocab
+
+def translate(legend, type_dict):
+    # legend = list(range(len(type_dict)))
+    ent_translate_dict = {
+        '疾病':     'Disease',
+        '症状':     'Symptom',
+        '手术':     'Surgery',
+        '部位':     'Anatomy',
+        '生化指标': 'Biochemical Indicator',
+        '药物':     'Drug',
+        '实验室检查':'Lab Exam',
+        '影像学检查':'Radiographic Exam',
+        '体格检查': 'Physical Exam',
+        '就诊科室': 'Medical Department',
+        '药品名':   'Drug Name',
+        '其他治疗': 'Other treatment',
+    }
+    rel_translate_dict = {
+        '症状': 'Disease-Symptom',
+        '部位': 'Disease-Anatomy',
+        '检查': 'Disease-Exam',
+        '并发症': 'Complication',
+        '规范化药品名称': 'Name Normalization',
+        '科室': 'Disease-Department',
+        '抗炎': 'Anti-inflammatory',
+        '止痛': 'Pain Relief',
+        '解热': 'Antipyretic',
+        '指标': 'Disease-Indicator',
+        '疾病相关指标': 'Exam-Indicator',
+    }
 
 # plot
 def plot_embedding(data, label, title, legend):
@@ -17,8 +45,6 @@ def plot_embedding(data, label, title, legend):
     data = (data - x_min) / (x_max - x_min)
     fig = plt.figure()
 
-    # label = label[:100]
-    # data = data[:100]
     for i in range(len(legend)):
         plt.plot(data[label == i, 0], data[label == i, 1], '.')
     plt.xticks([])
@@ -91,8 +117,10 @@ def visual(ent_list, ent_name, type_dict, label, mod = 'transe', model_time = '0
     return ent_embeds, label, title, legend
 
 if __name__ == '__main__':
-    ent_dict, ent_list, ent_name, ent_type, type_dict, label = get_entity()
-    visual(ent_list, ent_name, type_dict, label, 'bertcls')
+    ent_dict, ent_list, ent_name, ent_type, type_dict, label, \
+        rel_dict, rel_list, triplets = load_vocab()
+    print(type_dict, rel_dict)
+    # visual(ent_list, ent_name, type_dict, label, 'bertcls')
     # visual('transe', '10222237')
 
 
