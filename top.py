@@ -1,8 +1,7 @@
-import numpy as np
 import json
 
-from utils import get_entity
-from visual import do_emb, visual_emb
+from data import get_entity
+from visual import visual, visual_emb
 
 def cal_num(ent_dict):
     occur = {ent: 0 for ent in ent_dict}
@@ -14,22 +13,20 @@ def cal_num(ent_dict):
     occur = sorted([[ent, occur[ent]] for ent in occur], key = lambda x: x[1], reverse = True)
     return occur
 
-def get_top_index(k = 500):
-    ent_dict, ent_list, ent_name, ent_type, type_dict = get_entity()
+def get_top_index(ent_dict, k = 500):
+    ent_dict = get_entity()
     occur = cal_num(ent_dict)
     top_occur = occur[:k]
     index = [ent_dict[item[0]] for item in occur[:k]]
     return index
 
-def visual_top(k = 500):
-    index = get_top_index(k)
+def visual_top(ent_dict, ent_list, ent_name, type_dict, label, k = 500):
+    index = get_top_index(ent_dict, k)
     
-    ent_embeds, label, title, legend = do_emb('transe', '09161640', 200)
-    visual_emb(ent_embeds[index], label[index], title, legend)
-    ent_embeds, label, title, legend = do_emb('transe', '10222237')
-    visual_emb(ent_embeds[index], label[index], 'bert-transe', legend)
-    ent_embeds, label, title, legend = do_emb('bertcls')
-    visual_emb(ent_embeds[index], label[index], title, legend)
+    visual(ent_list[index], ent_name, type_dict, label, 'transe', '09161640', 200)
+    visual(ent_list[index], ent_name, type_dict, label, 'transe', '10222237')
+    visual(ent_list[index], ent_name, type_dict, label, 'bertcls')
 
 if __name__ == '__main__':
-    visual_top(1000)
+    ent_dict, ent_list, ent_name, type_dict, label = get_entity()
+    visual_top(ent_dict, ent_list, ent_name, type_dict, label, 2000)

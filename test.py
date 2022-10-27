@@ -35,7 +35,7 @@ def rank_dist(target, ent_embeds):
 if __name__ == '__main__':
     # load data
     data_path = 'drugdata/'
-    model_name = './checkpoint/transe_drug_09161640.ckpt'
+    model_name = './checkpoint/transe_drug_10231123.ckpt'
     print('load model: ', model_name)
 
     ent_dict, ent_list = load_entity(data_path + 'entity2id.txt')
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     transe = TransE(
         ent_tot = 81607, # total number of entity
         rel_tot = 15,
-        dim = 200, 
+        dim = 768, 
         p_norm = 1, 
         norm_flag = True
     ).cuda()

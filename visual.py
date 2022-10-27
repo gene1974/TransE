@@ -8,7 +8,8 @@ from sklearn.manifold import TSNE
 
 from test import get_embeds
 from bertmodel import get_bertcls_emb
-from utils import get_entity, clean_type, cal_type_num, get_embeds, clean_str
+from utils import get_embeds
+from data import get_entity
 
 # plot
 def plot_embedding(data, label, title, legend):
@@ -76,12 +77,8 @@ def visual_emb(ent_embeds, label, title, legend):
     print('tsne:', result.shape)
     plot_embedding(result, label, title, legend)
 
-def do_emb(mod = 'transe', model_time = '09161640', emb_dim = 768):
-    ent_dict, ent_list, ent_name, ent_type, type_dict = get_entity()
-    ent_type, type_dict = clean_type(ent_type, type_dict)
-    label = np.array([type_dict[i] for i in ent_type])
+def visual(ent_list, ent_name, type_dict, label, mod = 'transe', model_time = '09161640', emb_dim = 768):
     legend = list(range(len(type_dict)))
-    cal_type_num(type_dict, label)
     if mod == 'transe':
         ent_embeds = load_transe(ent_list, model_time, emb_dim = emb_dim)
         title = 'transe'
@@ -93,28 +90,9 @@ def do_emb(mod = 'transe', model_time = '09161640', emb_dim = 768):
         title = 'bert-cls'
     return ent_embeds, label, title, legend
 
-def visual(mod = 'transe', model_time = '09161640'):
-    ent_dict, ent_list, ent_name, ent_type, type_dict = get_entity()
-    ent_type, type_dict = clean_type(ent_type, type_dict)
-    label = np.array([type_dict[i] for i in ent_type])
-    legend = list(range(len(type_dict)))
-    cal_type_num(type_dict, label)
-    if mod == 'transe':
-        ent_embeds = load_transe(ent_list, model_time, emb_dim = 768)
-        title = 'transe'
-    elif mod == 'bert':
-        ent_embeds = get_bert_emb(ent_list, ent_name)
-        title = 'bert-avg'
-    elif mod == 'bertcls':
-        ent_embeds, label = get_bertcls_emb()
-        title = 'bert-cls'
-    tsne = TSNE(n_components=2, init='pca', random_state=0)
-    result = tsne.fit_transform(ent_embeds.detach().numpy())
-    print('tsne:', result.shape)
-    plot_embedding(result, label, title, legend)
-
 if __name__ == '__main__':
-    visual('bertcls')
+    ent_dict, ent_list, ent_name, ent_type, type_dict, label = get_entity()
+    visual(ent_list, ent_name, type_dict, label, 'bertcls')
     # visual('transe', '10222237')
 
 

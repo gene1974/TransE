@@ -27,7 +27,7 @@ def train(transe, train_dataloader, test_dataloader = None):
 		mrr, mr, hit10, hit3, hit1 = tester.run_link_prediction(type_constrain = True)
 	return transe
 
-def train_transe(mod = 'bert'):
+def train_transe(mod = 'bert', model_time = '10251007', emb_dim = 768):
 	train_dataloader = TrainDataLoader(
 		in_path = "./drugdata/", 
 		nbatches = 100,
@@ -39,13 +39,13 @@ def train_transe(mod = 'bert'):
 		neg_rel = 0)
 	test_dataloader = TestDataLoader("./drugdata/", "link", True)
 
-	bert_emb, rel_emb = load_emb('./result/')
 	if mod == 'bert':
+		bert_emb, rel_emb = load_emb(model_time)
 		pretrain_emb = [bert_emb, rel_emb]
-		emb_dim = 768
+		# emb_dim = 768
 	else:
 		pretrain_emb = None
-		emb_dim = 200
+		# emb_dim = 200
 	
 	model = TransE(
 		ent_tot = train_dataloader.get_ent_tot(), # total number of entity
