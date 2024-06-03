@@ -4,11 +4,13 @@ Use OpenKE to train TransE model.
 
 ### Data
 
+```
 entity2id.txt
 relation2id.txt
 train2id.txt
 valid2id.txt
 test2id.txt
+```
 
 ### Usage
 

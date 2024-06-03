@@ -131,7 +131,7 @@ def test_bert(model, test_set):
             test_total += len(labels)
     print('Test: Acc: {:4f}'.format(test_correct / test_total))
 
-def train_bertcls_emb(ent_list, ent_name, type_dict, label, rel_list):
+def train_bertcls_emb(ent_list, ent_name, ent_type_dict, label, rel_type_list):
     ent_list = [ent_name[ent] for ent in ent_list]
     tokenizer = BertTokenizer.from_pretrained('/data/pretrained/bert-base-chinese/')
     tokens = tokenizer([ent for ent in ent_list], 
@@ -140,17 +140,17 @@ def train_bertcls_emb(ent_list, ent_name, type_dict, label, rel_list):
     n_train, n_dev = int(0.8 * len(tokens['input_ids'])), int(0.2 * len(tokens['input_ids']))
     train_set = BertData(tokens['input_ids'][:n_train], tokens['attention_mask'][:n_train], label[:n_train])
     valid_set = BertData(tokens['input_ids'][n_train:], tokens['attention_mask'][n_train:], label[n_train:])
-    model = train_bert(train_set, valid_set, len(type_dict))
+    model = train_bert(train_set, valid_set, ent_type_dict)
 
     vocab = [tokenizer, tokens]
     model_time = save_model(model, vocab)
     test_bert(model, valid_set)
-    bert_emb, rel_emb, emb_time = get_bertcls_emb(rel_list, model_time = '10221520')
+    bert_emb, rel_emb, emb_time = get_bertcls_emb(rel_type_list, ent_type_dict, model_time)
 
     return model, model_time, bert_emb, rel_emb, emb_time
 
-def get_bertcls_emb(rel_list, model_time = '10221520'):
-    model = BertCls().to('cuda')
+def get_bertcls_emb(rel_type_list, ent_type_dict, model_time = '10221520'):
+    model = BertCls(len(ent_type_dict)).to('cuda')
     model, vocab = load_model(model_time, model)
     tokenizer, tokens = vocab
 
@@ -163,7 +163,8 @@ def get_bertcls_emb(rel_list, model_time = '10221520'):
         bert_emb.append(bert_out.detach().cpu())
     bert_emb = torch.cat(bert_emb, dim = 0) # ([81607, 768])
 
-    rel_tokens = tokenizer([rel for rel in rel_list], 
+    
+    rel_tokens = tokenizer([rel for rel in rel_type_list], 
                        padding = 'max_length', truncation = True, max_length = 20, return_tensors = 'pt')
     token_ids = rel_tokens['input_ids'].to('cuda')
     mask_ids = rel_tokens['attention_mask'].to('cuda')
@@ -179,7 +180,9 @@ def load_emb(emb_time):
     return ent_emb, rel_emb
 
 if __name__ == '__main__':
-    ent_dict, ent_list, ent_name, ent_type, type_dict, label, \
-        rel_dict, rel_list, triplets = load_vocab()
-    train_bertcls_emb(ent_list, ent_name, label, rel_list)
+    ent_dict, ent_list, ent_name, ent_type_list, ent_type_dict, label, \
+        rel_type_dict, rel_list, triplets = load_vocab()
+    # train_bertcls_emb(ent_list, ent_name, ent_type_dict, label, rel_type_list)
+    rel_type_list = ['症状', '部位', '检查', '科室', '指标', '疾病相关指标', '并发症', '规范化药品名称', '治疗', '抗炎', '抗病毒', '止痛', '解热']
+    bert_emb, rel_emb, emb_time = get_bertcls_emb(rel_type_list, ent_type_dict, '10271539')
 

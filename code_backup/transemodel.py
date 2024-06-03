@@ -72,12 +72,12 @@ def train_transe(ent_list, rel_list, mod = 'bert', emb_time = '10251007', emb_di
 	ent_emb = embed_entity(transe.ent_embeddings, ent_list, emb_dim)
 	rel_emb = embed_entity(transe.rel_embeddings, rel_list, emb_dim)
 	if mod == 'bert':
-		emb_time = save_data('./result/transe_bert_emb.vec', [ent_emb, rel_emb])
+		emb_time = save_data('./result/bert_transe_emb.vec', [ent_emb, rel_emb])
 	else:
 		emb_time = save_data('./result/transe_emb.vec', [ent_emb, rel_emb])
 	return transe, model_time, ent_emb, rel_emb, emb_time
 
-def get_transe_embeds(model_time, ent_list, rel_list, emb_dim = 768):
+def get_transe_embeds(model_time, ent_list, rel_list, mod = 'bert', emb_dim = 768):
 	transe = TransE(
 		ent_tot = len(ent_list), # total number of entity
 		rel_tot = len(rel_list),
@@ -88,7 +88,11 @@ def get_transe_embeds(model_time, ent_list, rel_list, emb_dim = 768):
 	transe.load_checkpoint('./checkpoint/transe_drug_{}.ckpt'.format(model_time))
 	ent_emb = embed_entity(transe.ent_embeddings, ent_list, emb_dim)
 	rel_emb = embed_entity(transe.rel_embeddings, rel_list, emb_dim)
-	return ent_emb, rel_emb
+	if mod == 'bert':
+		emb_time = save_data('./result/bert_transe_emb.vec', [ent_emb, rel_emb])
+	else:
+		emb_time = save_data('./result/transe_emb.vec', [ent_emb, rel_emb])
+	return ent_emb, rel_emb, emb_time
 
 if __name__ == '__main__':
 	train_transe('bert')

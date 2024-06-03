@@ -3,100 +3,83 @@ import numpy as np
 
 from utils import load_data, save_data
 
-ent_type_dict = {
-    '疾病': 0,
-    '症状': 1,
-    '手术': 2,
-    '部位': 3,
-    '生化指标': 4,
-    '药物': 5,
-    '实验室检查': 6,
-    '影像学检查': 7,
-    '体格检查': 8,
-    '就诊科室': 9,
-    '药品名': 10,
-    '其他治疗': 11,
-}
-rel_dict = {
-    '症状': 0,
-    '部位': 1,
-    '检查': 2,
-    '并发症': 3,
-    '规范化药品名称': 4,
-    '科室': 5,
-    '抗炎': 6,
-    '止痛': 7,
-    '解热': 8,
-    '指标': 9,
-    '疾病相关指标': 10,
-    '治疗': 11,
-    '抗病毒': 12,
-}
-
 # merge types
-def merge_ent_type(ent_type, type_dict):
-    for i in range(len(ent_type)):
-        if ent_type[i] in ['症状描述', '症状', '独立症状']:
-            ent_type[i] = '症状'
-        elif ent_type[i] in ['手术治疗', '手术']:
-            ent_type[i] = '手术'
-    type_dict.pop('症状描述')
-    type_dict.pop('独立症状')
-    type_dict.pop('手术治疗')
-    for i, key in enumerate(type_dict):
-        type_dict[key] = i
-    return ent_type, type_dict
+def merge_ent_type(ent_type_list):
+    for i in range(len(ent_type_list)):
+        if ent_type_list[i] in ['症状描述', '症状', '独立症状']:
+            ent_type_list[i] = '症状'
+        elif ent_type_list[i] in ['手术治疗', '手术']:
+            ent_type_list[i] = '手术'
+    return ent_type_list
 
 # merge relation types
-def merge_rel_type(rel_dict, triplets):
+def merge_rel_type(triplets):
     for i in range(len(triplets)):
         if triplets[i][2] in ['患病症状', '症状']:
             triplets[i][2] = '症状'
         elif triplets[i][2] in ['部位', '患病部位']:
             triplets[i][2] = '部位'
-    rel_dict.pop('患病症状')
-    rel_dict.pop('患病部位')
-    for i, key in enumerate(rel_dict):
-        rel_dict[key] = i
-    return rel_dict, triplets
+    return triplets
 
 # load and merge entity from raw data
 def get_entity():
+    ent_type_dict = {
+        '疾病': 0,
+        '症状': 1,
+        '手术': 2,
+        '部位': 3,
+        '药物': 4,
+        '药品名': 5,
+        '生化指标': 6,
+        '实验室检查': 7,
+        '影像学检查': 8,
+        '体格检查': 9,
+        '就诊科室': 10,
+        '其他治疗': 11,
+    }
     data = json.load(open('all_output_multi_source_drug_processed.json')) # 171414, 384323
     entity = data['entity'] # 79756 81607 81607
     ent_name = {} # ID_2_name
     ent_dict = {} # ID_2_index, ID is in data, index is encoding
     ent_list = [] # index_2_ID
-    ent_type = [] # index_2_type
-    type_list = set()
+    ent_type_list = [] # index_2_type
     for ent in entity:
         if '名称' in ent:
             ent_name[ent['ID']] = ent['名称']
             ent_dict[ent['ID']] = len(ent_dict) # 存在一个名称对应多个ID的情况
             ent_list.append(ent['ID'])
-            ent_type.append(ent['类型'][0][0][0])
-            type_list.add(ent['类型'][0][0][0]) # 一个实体可能有多种类型
+            ent_type_list.append(ent['类型'][0][0][0]) # 一个实体可能有多种类型
 
-    type_list = list(type_list)
-    type_dict = {type_list[i]: i for i in range(len(type_list))}
-
-    ent_type, type_dict = merge_ent_type(ent_type, type_dict)
-    label = np.array([type_dict[i] for i in ent_type])
-    cal_type_num(type_dict, label)
-    return ent_dict, ent_list, ent_name, ent_type, type_dict, label
+    ent_type_list = merge_ent_type(ent_type_list)
+    label = np.array([ent_type_dict[i] for i in ent_type_list])
+    cal_type_num(ent_type_dict, label)
+    print(len(ent_dict), len(ent_list), len(ent_name))
+    return ent_dict, ent_list, ent_name, ent_type_list, ent_type_dict, label
 
 # load and merge triplet from raw data
 def get_triplet():
+    rel_type_dict = {
+        '症状': 0,
+        '部位': 1,
+        '检查': 2,
+        '科室': 3,
+        '指标': 4,
+        '疾病相关指标': 5,
+        '并发症': 6,
+        '规范化药品名称': 7,
+        '治疗': 8,
+        '抗炎': 9,
+        '抗病毒': 10,
+        '止痛': 11,
+        '解热': 12,
+    }
+    rel_type_name = ['症状', '部位', '检查', '科室', '指标', '疾病相关指标', '并发症', '规范化药品名称', '治疗', '抗炎', '抗病毒', '止痛', '解热']
     data = json.load(open('all_output_multi_source_drug_processed.json')) # 171414, 384323
     triplets = data['relation']
-    rel_dict = {} # rel_2_id
-    for trip in triplets:
-        if trip[2] not in rel_dict:
-            rel_dict[trip[2]] = len(rel_dict)
-    rel_dict, triplets = merge_rel_type(rel_dict, triplets)
-    rel_list = np.array([rel_dict[t[2]] for t in triplets])
-    cal_type_num(rel_dict, rel_list)
-    return rel_dict, rel_list, triplets
+    triplets = merge_rel_type(triplets)
+    rel_type_list = np.array([rel_type_dict[t[2]] for t in triplets])
+    cal_type_num(rel_type_dict, rel_type_list)
+    return rel_type_dict, rel_type_list, triplets
 
 # get number of each type of ent/rel
 def cal_type_num(type_dict, label):
@@ -139,20 +122,26 @@ def dump_new_relation(ent_dict, rel_dict, triplets):
     return
 
 def dump_and_save_vocab():
-    ent_dict, ent_list, ent_name, ent_type, type_dict, label = get_entity()
-    rel_dict, rel_list, triplets = get_triplet()
+    ent_dict, ent_list, ent_name, ent_type_list, ent_type_dict, label = get_entity()
+    rel_type_dict, rel_type_list, triplets = get_triplet()
     dump_new_entity(ent_dict, ent_name)
-    dump_new_relation(ent_dict, rel_dict, triplets)
+    dump_new_relation(ent_dict, rel_type_dict, triplets)
     vocab = [
-        ent_dict, ent_list, ent_name, ent_type, type_dict, label, 
-        rel_dict, rel_list, triplets
+        ent_dict, ent_list, ent_name, ent_type_list, ent_type_dict, label, 
+        rel_type_dict, rel_type_list, triplets
     ]
     data_time = save_data('./result/vocab', vocab)
+    return data_time
 
-def load_vocab(data_time = '10271000'):
+def load_vocab(data_time = '10271433'):
     vocab = load_data('./result/vocab', data_time)
     return vocab
 
 if __name__ == '__main__':
-    dump_and_save_vocab()
+    # dump_and_save_vocab()
+    # vocab = load_vocab()
+    # ent_dict, ent_list, ent_name, ent_type_list, ent_type_dict, label, \
+    #     rel_type_dict, rel_type_list, triplets = vocab
+    # print(ent_name)
+    get_entity()
 
